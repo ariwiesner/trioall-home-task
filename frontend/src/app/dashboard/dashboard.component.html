@@ -1,0 +1,121 @@
+<section class="summary" *ngIf="summary as s">
+  <button
+    type="button"
+    class="summary-card status-problem"
+    [class.active]="statusFilter === 'problem'"
+    (click)="toggleStatus('problem')"
+  >
+    <span class="summary-count">{{ s.problem }}</span>
+    <span class="summary-label">Problems</span>
+    <span class="summary-sub">Requires attention</span>
+  </button>
+  <button
+    type="button"
+    class="summary-card status-needs_review"
+    [class.active]="statusFilter === 'needs_review'"
+    (click)="toggleStatus('needs_review')"
+  >
+    <span class="summary-count">{{ s.needs_review }}</span>
+    <span class="summary-label">Needs review</span>
+    <span class="summary-sub">Potential issues detected</span>
+  </button>
+  <button
+    type="button"
+    class="summary-card status-good"
+    [class.active]="statusFilter === 'good'"
+    (click)="toggleStatus('good')"
+  >
+    <span class="summary-count">{{ s.good }}</span>
+    <span class="summary-label">Good</span>
+    <span class="summary-sub">No current issues</span>
+  </button>
+</section>
+
+<div class="list-heading-row">
+  <h2 class="section-heading">Refrigerators</h2>
+  <button type="button" class="refresh-btn tap-target" (click)="refresh()" aria-label="Refresh" [disabled]="loading">
+    <span [class.spin]="loading">⟳</span>
+  </button>
+</div>
+
+<section class="toolbar">
+  <input
+    type="search"
+    class="search-input"
+    placeholder="Search refrigerators, branches or loggers…"
+    aria-label="Search"
+    [ngModel]="searchTerm"
+    (ngModelChange)="onSearchInput($event)"
+  />
+  <div class="filter-row">
+    <button type="button" class="filter-chip" [class.active]="!statusFilter" (click)="statusFilter = null; refresh()">All</button>
+    <button type="button" class="filter-chip" [class.active]="statusFilter === 'problem'" (click)="toggleStatus('problem')">Problems</button>
+    <button type="button" class="filter-chip" [class.active]="statusFilter === 'needs_review'" (click)="toggleStatus('needs_review')">Needs review</button>
+    <button type="button" class="filter-chip" [class.active]="statusFilter === 'good'" (click)="toggleStatus('good')">Good</button>
+  </div>
+  <div class="toolbar-row">
+    <select
+      class="branch-select"
+      aria-label="Filter by branch"
+      [ngModel]="branchIdFilter"
+      (ngModelChange)="onBranchChange($event)"
+    >
+      <option [ngValue]="null">All branches</option>
+      <option *ngFor="let b of branchOptions" [ngValue]="b.id">{{ b.name }}</option>
+    </select>
+    <button type="button" class="clear-btn" *ngIf="hasActiveFilters" (click)="clearFilters()">Clear</button>
+  </div>
+</section>
+
+<div class="state-message" *ngIf="loading">Loading…</div>
+<div class="state-message error" *ngIf="error">
+  Could not load the dashboard. Check that the backend is running and try again.
+</div>
+
+<ng-container *ngIf="!loading && !error">
+  <div class="empty-state" *ngIf="branchGroups.length === 0">
+    <span class="empty-title">{{ hasActiveFilters ? 'No matches' : 'No refrigerators yet' }}</span>
+    <p>
+      {{
+        hasActiveFilters
+          ? 'No refrigerators match these filters. Try clearing them.'
+          : 'Once refrigerators are registered and reporting, they will show up here.'
+      }}
+    </p>
+  </div>
+
+  <section class="branch-group" *ngFor="let branch of branchGroups">
+    <h3 class="branch-name">{{ branch.name }}</h3>
+    <ul class="fridge-list">
+      <li *ngFor="let fridge of branch.fridges">
+        <a [routerLink]="['/refrigerators', fridge.id]" class="fridge-card tap-target" [ngClass]="fridge.meta.colorClass">
+          <div class="fridge-card-top">
+            <span class="fridge-name">{{ fridge.name }}</span>
+            <span class="status-badge" [ngClass]="fridge.meta.colorClass">
+              <span aria-hidden="true">{{ fridge.meta.icon }}</span>{{ fridge.meta.label }}
+            </span>
+          </div>
+
+          <div class="meta-line" *ngIf="fridge.loggerCode">Logger {{ fridge.loggerCode }}</div>
+
+          <p class="fridge-line">
+            <span class="fridge-temp">
+              <ng-container *ngIf="fridge.temperature !== null; else dash">{{ fridge.temperature | number: '1.1-1' }}&deg;C</ng-container>
+              <ng-template #dash>&mdash;</ng-template>
+            </span>
+            <span class="fridge-sep">·</span>
+            <ng-container *ngIf="fridge.reason; else lastReadingDetail">
+              <span class="fridge-detail">{{ fridge.reason }}</span>
+            </ng-container>
+            <ng-template #lastReadingDetail>
+              <span class="fridge-detail">Last reading {{ fridge.lastReadingAt | relativeTime }}</span>
+            </ng-template>
+          </p>
+          <div class="temp-original" *ngIf="fridge.originalFahrenheit !== null">
+            Original: {{ fridge.originalFahrenheit | number: '1.1-1' }}&deg;F
+          </div>
+        </a>
+      </li>
+    </ul>
+  </section>
+</ng-container>

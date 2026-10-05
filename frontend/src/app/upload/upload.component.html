@@ -1,0 +1,67 @@
+<a routerLink="/" class="back-link">← Dashboard</a>
+
+<h1>Upload temperature files</h1>
+<p class="hint">Upload the files received from your temperature loggers.</p>
+
+<div class="upload-form" *ngIf="!result">
+  <label class="file-picker tap-target">
+    <input type="file" accept=".csv,.xlsx,.xls" (change)="onFileSelected($event)" />
+    <span class="file-picker-icon" aria-hidden="true">⬆</span>
+    <span class="file-picker-label">{{ selectedFile ? selectedFile.name : 'Choose file' }}</span>
+    <span class="file-picker-sub" *ngIf="!selectedFile">Supported formats: CSV and Excel</span>
+  </label>
+
+  <label class="field fallback-field">
+    <span>Logger (only needed if the file has no Logger column)</span>
+    <select [(ngModel)]="fallbackLoggerId">
+      <option [ngValue]="null">&mdash; none &mdash;</option>
+      <option *ngFor="let l of loggers" [ngValue]="l.id">
+        {{ l.external_id }} ({{ l.current_assignment || 'unassigned' }})
+      </option>
+    </select>
+  </label>
+
+  <button type="button" class="upload-btn tap-target" [disabled]="!selectedFile || uploading" (click)="upload()">
+    {{ uploading ? 'Uploading…' : 'Upload' }}
+  </button>
+
+  <div class="state-message error" *ngIf="errorMessage">{{ errorMessage }}</div>
+</div>
+
+<div class="upload-result" *ngIf="result as r">
+  <div class="result-banner">
+    <span class="result-title">Upload complete ✓</span>
+    <p>{{ r.row_count }} row{{ r.row_count === 1 ? '' : 's' }} processed</p>
+  </div>
+
+  <ul class="result-list">
+    <li>{{ r.valid_count }} valid reading{{ r.valid_count === 1 ? '' : 's' }}</li>
+    <li *ngIf="r.invalid_count > 0" class="warn">{{ r.invalid_count }} invalid reading{{ r.invalid_count > 1 ? 's' : '' }}</li>
+    <li *ngIf="r.unresolved_count > 0" class="warn">{{ r.unresolved_count }} unresolved logger{{ r.unresolved_count > 1 ? 's' : '' }}</li>
+    <li *ngIf="r.duplicate_count > 0">{{ r.duplicate_count }} duplicate{{ r.duplicate_count > 1 ? 's' : '' }} skipped</li>
+  </ul>
+
+  <!-- Each issue type gets its own box — a file can have both unknown
+       loggers AND unrelated bad rows, and hiding one behind the other
+       would bury a real problem. -->
+  <div class="needs-attention" *ngIf="r.unknown_logger_codes.length > 0 || r.invalid_count > 0">
+    <h2 class="section-heading">Needs attention</h2>
+
+    <div class="issue-box" *ngIf="r.unknown_logger_codes.length > 0">
+      <strong>{{ r.unknown_logger_codes.join(', ') }}</strong>
+      {{ r.unknown_logger_codes.length > 1 ? 'are' : 'is' }} not registered yet.
+      <p>
+        The readings were kept and will be associated automatically once
+        {{ r.unknown_logger_codes.length > 1 ? 'these loggers are' : 'this logger is' }} configured.
+      </p>
+    </div>
+
+    <div class="issue-box" *ngIf="r.invalid_count > 0">
+      <strong>{{ r.invalid_count }} row{{ r.invalid_count > 1 ? 's' : '' }} couldn't be read.</strong>
+      <p>Bad timestamps, bad temperatures, or no logger identified at all. Check the original file.</p>
+    </div>
+  </div>
+
+  <button type="button" class="upload-btn tap-target" (click)="reset()">Upload another file</button>
+  <a routerLink="/" class="secondary-link">Back to dashboard</a>
+</div>

@@ -1,0 +1,129 @@
+<a routerLink="/" class="back-link">← Dashboard</a>
+
+<div class="state-message" *ngIf="loading">Loading…</div>
+<div class="state-message error" *ngIf="error">
+  Could not load this refrigerator. <a routerLink="/">Back to dashboard</a>
+</div>
+
+<ng-container *ngIf="fridge as f">
+  <header class="detail-header">
+    <div class="branch-label">{{ f.branch }}</div>
+    <div class="name-row">
+      <h1>{{ f.name }}</h1>
+      <span class="status-badge" [ngClass]="meta.colorClass" *ngIf="meta">
+        <span aria-hidden="true">{{ meta.icon }}</span>{{ meta.label }}
+      </span>
+    </div>
+  </header>
+
+  <section class="hero-stats">
+    <div class="hero-temp">
+      <ng-container *ngIf="f.last_temperature_c !== null; else noTemp">{{ f.last_temperature_c | number: '1.1-1' }}&deg;C</ng-container>
+      <ng-template #noTemp>&mdash;</ng-template>
+    </div>
+    <div class="temp-original" *ngIf="heroOriginalF !== null || heroSourceFile !== null">
+      <ng-container *ngIf="heroOriginalF !== null">Original: {{ heroOriginalF | number: '1.1-1' }}&deg;F</ng-container>
+      <ng-container *ngIf="heroOriginalF !== null && heroSourceFile !== null"> · </ng-container>
+      <ng-container *ngIf="heroSourceFile !== null">Source: <code>{{ heroSourceFile }}</code></ng-container>
+    </div>
+    <div class="hero-sub">Last reading {{ f.last_reading_at | relativeTime }}</div>
+    <div class="meta-line" *ngIf="loggerCode">Logger {{ loggerCode }}</div>
+  </section>
+
+  <!-- A fridge with zero data ever has nothing to show in "current status"
+       or "history" beyond this — see brief section 16. -->
+  <div class="empty-state card" *ngIf="neverReported">
+    <span class="empty-title">No readings yet</span>
+    <p>No temperature data has been received for this refrigerator.</p>
+  </div>
+
+  <ng-container *ngIf="!neverReported">
+    <section class="status-section">
+      <h2 class="section-heading">Current status</h2>
+      <div class="status-box" [ngClass]="meta.colorClass" *ngIf="meta">
+        <span class="status-box-badge">
+          <span aria-hidden="true">{{ meta.icon }}</span>{{ meta.label }}
+        </span>
+        <p>{{ currentStatusText }}</p>
+      </div>
+    </section>
+
+    <section class="history-section">
+      <h2 class="section-heading">History</h2>
+
+      <div class="empty-state card" *ngIf="!hasHistory">
+        <span class="empty-title">No issues recorded</span>
+        <p>This refrigerator has no recorded temperature problems.</p>
+      </div>
+
+      <div class="date-group" *ngFor="let group of dateGroups">
+        <div class="date-separator">{{ group.label }}</div>
+        <div
+          class="event-card card"
+          *ngFor="let event of group.events"
+          [ngClass]="'kind-' + event.kind"
+          [class.current]="event.isCurrent"
+        >
+          <div class="event-head">
+            <span class="event-icon" aria-hidden="true">{{ event.icon }}</span>
+            <span class="event-title">{{ event.title }}</span>
+          </div>
+          <div class="event-range meta-line">{{ event.rangeLabel }}</div>
+
+          <ng-container *ngIf="event.kind === 'breach'">
+            <p class="event-detail">Temperature stayed above the safe threshold.</p>
+            <p class="event-stats">
+              Peak: <strong>{{ event.maxTemp | number: '1.1-1' }}&deg;C</strong>
+              <span class="stats-sep">·</span>
+              Duration: <strong>{{ event.durationLabel }}</strong>
+            </p>
+            <div class="temp-original" *ngIf="(event.maxTempF !== null && event.maxTempF !== undefined) || event.sourceFile">
+              <ng-container *ngIf="event.maxTempF !== null && event.maxTempF !== undefined">
+                Original peak: {{ event.maxTempF | number: '1.1-1' }}&deg;F
+              </ng-container>
+              <ng-container *ngIf="event.maxTempF !== null && event.maxTempF !== undefined && event.sourceFile"> · </ng-container>
+              <ng-container *ngIf="event.sourceFile">Source: <code>{{ event.sourceFile }}</code></ng-container>
+            </div>
+          </ng-container>
+
+          <ng-container *ngIf="event.kind === 'warming'">
+            <p class="event-detail">Temperature increased:</p>
+            <p class="event-stats temp-arrow">
+              <ng-container *ngIf="event.startTemp !== null && event.startTemp !== undefined">
+                {{ event.startTemp | number: '1.1-1' }}&deg;C →
+              </ng-container>
+              <strong>{{ event.maxTemp | number: '1.1-1' }}&deg;C</strong>
+            </p>
+            <div class="temp-original" *ngIf="(event.maxTempF !== null && event.maxTempF !== undefined) || event.sourceFile">
+              <ng-container *ngIf="event.maxTempF !== null && event.maxTempF !== undefined">
+                Original:
+                <ng-container *ngIf="event.startTempF !== null && event.startTempF !== undefined">
+                  {{ event.startTempF | number: '1.1-1' }}&deg;F →
+                </ng-container>
+                {{ event.maxTempF | number: '1.1-1' }}&deg;F
+              </ng-container>
+              <ng-container *ngIf="event.maxTempF !== null && event.maxTempF !== undefined && event.sourceFile"> · </ng-container>
+              <ng-container *ngIf="event.sourceFile">Source: <code>{{ event.sourceFile }}</code></ng-container>
+            </div>
+            <svg *ngIf="event.sparklinePoints" class="sparkline" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+              <polyline [attr.points]="event.sparklinePoints" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </ng-container>
+
+          <ng-container *ngIf="event.kind === 'gap' || event.kind === 'current_gap'">
+            <p class="event-detail">No temperature reading was received for <strong>{{ event.durationLabel }}</strong>.</p>
+          </ng-container>
+
+          <div
+            class="event-pill"
+            [class.pill-current]="event.isCurrent"
+            [class.pill-resolved]="!event.isCurrent"
+            [class.pill-warning]="event.kind === 'warming'"
+          >
+            <span aria-hidden="true">{{ event.statusPillIcon }}</span>{{ event.statusPillLabel }}
+          </div>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+</ng-container>
