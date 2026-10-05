@@ -15,7 +15,7 @@ i chose technologies i already know well, so the limited implementation time cou
 
 ## Running the Project
 ### Prerequisite
-git clone https://github.com/ariwiesner trioall-home-task.git
+git clone https://github.com/ariwiesner/trioall-home-task.git
 
 cd trioall-home-task
 
